@@ -1,0 +1,152 @@
+diff --git a/frameworks/base/services/core/java/com/android/server/wm/WindowManagerService.java b/frameworks/base/services/core/java/com/android/server/wm/WindowManagerService.java
+index 907528f5f1..75392608ee 100644
+--- a/frameworks/base/services/core/java/com/android/server/wm/WindowManagerService.java
++++ b/frameworks/base/services/core/java/com/android/server/wm/WindowManagerService.java
+@@ -3314,8 +3314,6 @@ public class WindowManagerService extends IWindowManager.Stub
+                 return;
+             }
+ 
+-  //box:skip FallbackHome to fix 2-3s black screen before launcher.
+-  if (!"box".equals(SystemProperties.get("ro.target.product"))){
+             if (!mBootAnimationStopped) {
+                 Trace.asyncTraceBegin(TRACE_TAG_WINDOW_MANAGER, "Stop bootanim", 0);
+                 // stop boot animation
+@@ -3343,7 +3341,6 @@ public class WindowManagerService extends IWindowManager.Stub
+             } catch (RemoteException ex) {
+                 Slog.e(TAG_WM, "Boot completed: SurfaceFlinger is dead!");
+             }
+-    }
+             EventLog.writeEvent(EventLogTags.WM_BOOT_ANIMATION_DONE, SystemClock.uptimeMillis());
+             Trace.asyncTraceEnd(TRACE_TAG_WINDOW_MANAGER, "Stop bootanim", 0);
+             mDisplayEnabled = true;
+diff --git a/system/core/rootdir/ueventd.rc b/system/core/rootdir/ueventd.rc
+index 5561390c25..ffbd619c69 100644
+--- a/system/core/rootdir/ueventd.rc
++++ b/system/core/rootdir/ueventd.rc
+@@ -46,7 +46,7 @@ subsystem sound
+ 
+ # these should not be world writable
+ /dev/uhid                 0660   uhid       uhid
+-/dev/uinput               0660   uhid       uhid
++/dev/uinput               0660   system     bluetooth
+ /dev/rtc0                 0640   system     system
+ /dev/tty0                 0660   root       system
+ /dev/graphics/*           0660   root       graphics
+diff --git a/device/rockchip/rk3328/AndroidProducts.mk b/device/rockchip/rk3328/AndroidProducts.mk
+index c123aede61..361b3b3636 100755
+--- a/device/rockchip/rk3328/AndroidProducts.mk
++++ b/device/rockchip/rk3328/AndroidProducts.mk
+@@ -20,6 +20,7 @@ PRODUCT_MAKEFILES := \
+     $(LOCAL_DIR)/rk3328_box/rk3328_box.mk \
+     $(LOCAL_DIR)/rk3328_box_32/rk3328_box_32.mk \
+     $(LOCAL_DIR)/roc_rk3328_pc/roc_rk3328_pc.mk \
++    $(LOCAL_DIR)/roc_rk3328_pc/roc_rk3328_pc_gapps.mk \
+     $(LOCAL_DIR)/roc_rk3328_pc_32/roc_rk3328_pc_32.mk \
+ 
+ COMMON_LUNCH_CHOICES := \
+@@ -31,6 +32,7 @@ COMMON_LUNCH_CHOICES := \
+     rk3328_box_32-userdebug \
+     rk3328_box_32-user\
+     roc_rk3328_pc-userdebug\
++    roc_rk3328_pc_gapps-userdebug\
+     roc_rk3328_pc-user\
+     roc_rk3328_pc_32-userdebug\
+     roc_rk3328_pc_32-user
+diff --git a/device/rockchip/rk3328/roc_rk3328_pc/BoardConfig.mk b/device/rockchip/rk3328/roc_rk3328_pc/BoardConfig.mk
+index 5f24350289..35088bc5e8 100755
+--- a/device/rockchip/rk3328/roc_rk3328_pc/BoardConfig.mk
++++ b/device/rockchip/rk3328/roc_rk3328_pc/BoardConfig.mk
+@@ -15,6 +15,13 @@
+ #
+ include device/rockchip/rk3328/BoardConfig.mk
+ 
++# ROCK64 has no Bluetooth hardware
++BOARD_HAVE_BLUETOOTH := false
++BOARD_HAVE_BLUETOOTH_BCM := false
++BOARD_HAVE_BLUETOOTH_RTK := false
++BOARD_BLUETOOTH_SUPPORT := false
++BOARD_BLUETOOTH_LE_SUPPORT := false
++
+ PRODUCT_UBOOT_CONFIG ?= rk3328
+ PRODUCT_KERNEL_ARCH ?= arm64
+ PRODUCT_KERNEL_DTS ?= roc-rk3328-pc
+diff --git a/device/rockchip/common/device.mk b/device/rockchip/common/device.mk
+index c31f93c474..ba61ce7e71 100644
+--- a/device/rockchip/common/device.mk
++++ b/device/rockchip/common/device.mk
+@@ -797,6 +797,7 @@ PRODUCT_COPY_FILES += \
+ endif
+ 
+ # Bluetooth HAL
++ifeq ($(strip $(BOARD_HAVE_BLUETOOTH)),true)
+ PRODUCT_PACKAGES += \
+     libbt-vendor \
+     android.hardware.bluetooth@1.0-impl \
+@@ -806,6 +807,7 @@ PRODUCT_PACKAGES += \
+ ifeq ($(strip $(BOARD_HAVE_BLUETOOTH_RTK)), true)
+ include hardware/realtek/rtkbt/rtkbt.mk
+ endif
++endif
+ 
+ ifeq ($(strip $(TARGET_BOARD_PLATFORM_PRODUCT)), box)
+     include device/rockchip/common/samba/rk31_samba.mk
+diff --git a/device/rockchip/common/tv/tv_base.mk b/device/rockchip/common/tv/tv_base.mk
+index 73e265af79..2be7ef8ce9 100755
+--- a/device/rockchip/common/tv/tv_base.mk
++++ b/device/rockchip/common/tv/tv_base.mk
+@@ -93,8 +93,11 @@ PRODUCT_PACKAGES += \
+     com.android.media.tv.remoteprovider.xml
+ 
+ # From build/target/product/generic_no_telephony.mk
++ifeq ($(strip $(BOARD_HAVE_BLUETOOTH)),true)
++PRODUCT_PACKAGES += Bluetooth
++endif
++
+ PRODUCT_PACKAGES += \
+-    Bluetooth \
+     SystemUI \
+     librs_jni \
+     audio.primary.default \
+diff --git a/device/rockchip/common/tv/overlay/frameworks/base/core/res/res/values/config.xml b/device/rockchip/common/tv/overlay/frameworks/base/core/res/res/values/config.xml
+index a2c16f4294..832887db42 100755
+--- a/device/rockchip/common/tv/overlay/frameworks/base/core/res/res/values/config.xml
++++ b/device/rockchip/common/tv/overlay/frameworks/base/core/res/res/values/config.xml
+@@ -35,7 +35,7 @@
+              4  UI_MODE_TYPE_TELEVISION
+              5  UI_MODE_TYPE_APPLIANCE
+          Any other values will have surprising consequences. -->
+-    <integer name="config_defaultUiModeType">1</integer>
++    <integer name="config_defaultUiModeType">4</integer>
+     <bool name="config_lockUiMode">true</bool>
+ 
+     <!-- Control the behavior when the user long presses the home button.
+diff --git a/vendor/opengapps/build/modules/SetupWraithPrebuilt/Android.mk b/vendor/opengapps/build/modules/SetupWraithPrebuilt/Android.mk
+index d8bfcb6..317d0c5 100644
+--- a/vendor/opengapps/build/modules/SetupWraithPrebuilt/Android.mk
++++ b/vendor/opengapps/build/modules/SetupWraithPrebuilt/Android.mk
+@@ -4,5 +4,6 @@ include $(GAPPS_CLEAR_VARS)
+ LOCAL_MODULE := SetupWraithPrebuilt
+ LOCAL_PACKAGE_NAME := com.google.android.tungsten.setupwraith
+ LOCAL_PRIVILEGED_MODULE := true
++LOCAL_OVERRIDES_PACKAGES := Provision
+ 
+ include $(BUILD_GAPPS_PREBUILT_APK)
+diff --git a/vendor/opengapps/build/core/prebuilt_apk.mk b/vendor/opengapps/build/core/prebuilt_apk.mk
+index dda9aaa..4f580b5 100644
+--- a/vendor/opengapps/build/core/prebuilt_apk.mk
++++ b/vendor/opengapps/build/core/prebuilt_apk.mk
+@@ -58,6 +58,14 @@ endif
+ endif
+ endif
+ 
++# Preserve the original Google APK signature for AndroidMediaShell.
++# AOSP normally uncompresses embedded JNI libs and zipaligns PRESIGNED APKs,
++# which destroys APK Signature Scheme v2/v3.
++ifeq ($(LOCAL_MODULE),AndroidMediaShell)
++  LOCAL_REPLACE_PREBUILT_APK_INSTALLED := $(LOCAL_PATH)/$(LOCAL_SRC_FILES)
++  LOCAL_SRC_FILES :=
++endif
++
+ include $(BUILD_PREBUILT)
+ 
+ # generate mk file of shared library for kitkat

@@ -1,0 +1,12 @@
+*.img
+*.apk
+*.apkm
+*.xapk
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.log
+.DS_Store
+__pycache__/
+*.pyc
