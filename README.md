@@ -79,7 +79,7 @@ need the normal Android/Firefly build dependencies, `p7zip`/`7z`, Git and
 Git LFS.
 
 This project has been developed and tested with the Firefly Android 10 SDK
-on a modern Linux host. Some package names in Firefly's original Ubuntu
+on Ubuntu 24.04.4 LTS. Some package names in Firefly's original Ubuntu
 instructions are obsolete on newer Ubuntu releases.
 
 ### 2. Download the Firefly RK3328 Android 10 SDK
